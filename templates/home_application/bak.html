@@ -1,0 +1,321 @@
+<%inherit file="/base.html"/>
+
+<%block name="content">
+    <div class="home-page tree-page" id="app">
+        <div class="pageLeft">
+            <i-select v-model="biz" @on-change="bizChange">
+                <i-option v-for="item in bizList" :value="item.bk_biz_id">{{ item.bk_biz_name }}</i-option>
+            </i-select>
+            <!-- 树形控件 -->
+            <Tree :data="treeData" @on-select-change="treeClick"></Tree>
+            <!-- 树形加载中动画 -->
+            <Spin size="large" fix v-if="tree_loading"></Spin>
+        </div>
+        <div class="pageRight">
+            <div style="margin-top: 20px">
+                <i-form ref="searchFormItem" :model="searchFormItem" :label-width="150">
+                    <Row type="flex" justify="start" class="code-row-bg">
+                        <i-col span="1000">
+                            <Form-item label="主机IP">
+                                <i-input v-model="searchFormItem.ips" placeholder="请输入" clearable></i-input>
+                            </Form-item>
+                        </i-col>
+                    </Row>
+                    <Row type="flex" justify="start" class="code-row-bg">
+                        <i-col span="1000">
+                            <Form-item label="文件名">
+                                <i-input v-model="searchFormItem.file_name" placeholder="请输入" clearable></i-input>
+                            </Form-item>
+                        </i-col>
+                    </Row>
+                    <Row type="flex" justify="start" class="code-row-bg">
+                        <i-col span="1000">
+                            <Form-item label="文件名">
+                                <i-input v-model="searchFormItem.file_name" placeholder="请输入" clearable></i-input>
+                            </Form-item>
+                        </i-col>
+                    </Row>
+                    <Row type="flex" justify="start" class="code-row-bg">
+                        <i-col span="6">
+                            <div style="text-align: center">
+                                <i-button class="mr10" type="success" @click="search">立即查询</i-button>
+                            </div>
+                        </i-col>
+                    </Row>
+                </i-form>
+		    </div>
+        <!-- 搜索条件区域 End -->
+            <!-- 表格 -->
+            <i-table border :columns="columns" :data="data" :loading="table_loading"></i-table>
+
+            <!-- 分页 -->
+            <p style="text-align:right;margin-top: 10px">
+                <Page :current="pageConfiguration.current"
+                      show-total :total="pageConfiguration.total"
+                      show-sizer :page-size-opts="pageConfiguration.sizeOpts"
+                      show-elevator
+                      @on-change="pageCurrentChange"
+                      @on-page-size-change="pageSizeChange">
+                </Page>
+            </p>
+        </div>
+    </div>
+</%block>
+<script>
+    new Vue({
+        el: '#app',
+        data: function () {
+            return {
+                // 查询条件
+            	searchFormItem: {
+                    ips: '',
+                    dir:'',
+                    file_name:''
+                },
+                // 业务数据
+                biz: '',
+				bizList: [],
+
+                // 树形数据
+                //treeData: [
+                //    {
+                //        title: '蓝鲸',
+                //        id: 'blueking',
+                //        expand: true,
+                //        children: [
+                //            {
+                //                title: '作业平台',
+                //                id: 'job',
+                //                expand: true,
+                //                children: [
+                //                    {
+                //                        title: 'CSG工作台',
+                //                        id: 'csg'
+                //                    },
+                //                    {
+                //                        title: 'IOS平台远程代理',
+                //                        id: 'ios'
+                //                    },
+                //                    {
+                //                        title: 'IT监控',
+                //                        id: 'it'
+                //                    }
+                //                ]
+                //            },
+                //            {
+                //                title: '4A平台',
+                //                id: '4a',
+                //                expand: true,
+                //                children: [
+                //                    {
+                //                        title: '默认模块',
+                //                        id: 'default',
+                //                        expand: true,
+                //                        children: [
+                //                            {
+                //                                title: '4A内部接口',
+                //                                id: 'api'
+                //                            },
+                //                            {
+                //                                title: '4A应用服务器',
+                //                                id: 'servers'
+                //                            }
+                //                        ]
+                //                    }
+                //                ]
+                //            }
+                //        ]
+                //    }
+                //],
+                treeData: [],
+
+                // 表格配置
+                columns: [
+                    {
+                        title: 'IP',
+                        key: 'bk_host_innerip',
+                        align: 'center',
+                        ellipsis: true
+                    },
+                    {
+                        title: '文件列表',
+                        key: 'area',
+                        align: 'center',
+                        ellipsis: true
+                    },
+                    {
+                        title: '文件数量',
+                        key: 'bk_host_name',
+                        align: 'center',
+                        ellipsis: true
+                    },
+                    {
+                        title: '文件总大小',
+                        key: 'bk_os_name',
+                        align: 'center',
+                        ellipsis: true
+                    },
+                    {
+                        title: '操作',
+                        key: 'action',
+                        width: 200,
+                        align: 'center',
+                        render: (h, params) => {
+                            return h('div', [
+                                h('i-button', {
+                                    props: {
+                                        type: 'primary',
+                                        size: 'small',
+                                    },
+                                    style: {
+                                        marginRight: '10px'
+                                    },
+                                    on: {
+                                        click: () => {
+                                            this.edit(params.row);
+                                        }
+                                    }
+                                }, '立即备份')
+                            ]);
+                        }
+                    }
+                ],
+
+                // 表格数据
+                data: [],
+
+                // 树形加载中动画
+                tree_loading: false,
+
+                // 表格加载中动画
+                table_loading: false,
+
+                // 分页配置
+                pageConfiguration: {
+            	    current: 1,
+            	    total: 100,
+                    sizeOpts: [10,50,100]
+                },
+
+                hostParam: '',
+			}
+        },
+        created () {
+            this.getBizList();
+        },
+        mounted () {
+        },
+        methods: {
+            //查询
+            search(){
+
+            },
+            // 获取业务
+            getBizList () {
+                this.tree_loading = true;
+                axios.get(site_url + 'test/search_biz').then(res => {
+                    if (res.status === 200 && res.data.result) {
+                        this.bizList = res.data.data.info;
+                        this.biz = this.bizList[0].bk_biz_id;
+                        this.getBizTopo();
+                        this.getHost();
+                    } else {
+                        this.$Message.error(res.data.message);
+                    }
+                });
+            },
+
+            // 获取业务拓扑
+            getBizTopo () {
+                this.tree_loading = true;
+                axios.get(site_url + 'test/search_biz_topo?biz_id=' + this.biz).then(res => {
+                    if (res.status === 200 && res.data.result) {
+                        let data = res.data.data;
+                        data = parseJson(data, 'children', 'child');
+                        this.treeData = data;
+                        // 展开第一层
+                        this.treeData[0]['expand'] = true;
+                    } else {
+                        this.$Message.error(res.data.message);
+                    }
+                    this.tree_loading = false;
+                });
+            },
+
+            // 获取主机
+            getHost () {
+                this.table_loading = true;
+                axios.get(site_url + 'test/search_host?biz_id=' + this.biz + this.hostParam).then(res => {
+                    if (res.status === 200 && res.data.result) {
+                        this.pageConfiguration.total = res.data.data.count;
+                        this.data = res.data.data.info;
+                    } else {
+                        this.$Message.error(res.data.message);
+                    }
+                    this.table_loading = false;
+                    this.hostParam = '';
+                });
+            },
+
+            // 业务变更
+            bizChange () {
+                this.getBizTopo();
+                this.getHost();
+            },
+
+            // 点击树形节点，返回值为该节点的数据，返回格式是数组
+            treeClick (list) {
+                if (list.length) {
+                    if (list[0].bk_obj_id === 'set') {
+                        this.hostParam = '&set_id=' + list[0].bk_inst_id;
+                    } else if (list[0].bk_obj_id === 'module') {
+                        this.hostParam = '&module_id=' + list[0].bk_inst_id;
+                    }
+                    this.getHost();
+                }
+            },
+
+            // 改变页码
+            pageCurrentChange (val) {
+                console.log(val);
+            },
+
+            // 改变每页条数
+            pageSizeChange (val) {
+                console.log(val);
+            },
+
+            // 表格数据编辑
+            edit (row) {
+                console.log(row);
+            }
+        }
+    })
+</script>
+<style scoped>
+	.tree-page {
+		display: flex;
+	}
+
+    .pageLeft {
+        box-sizing: border-box;
+        width: 25%;
+        height: 100%;
+        overflow: auto;
+        padding: 15px;
+        border-right: 1px solid #d5d5d5;
+        position: relative;
+    }
+
+    .pageLeft .ivu-tree-children {
+        font-size: 15px;
+    }
+
+    .pageRight {
+        box-sizing: border-box;
+        width: 75%;
+        height: 100%;
+        overflow-y: auto;
+        padding: 15px;
+    }
+</style>

@@ -16,7 +16,8 @@ def table(request):
     """
     表格页面
     """
-    return render_mako_context(request, '/home_application/table.html')
+    #return render_mako_context(request, '/home_application/table.html')
+    return render_mako_context(request, '/home_application/bak.html')
 
 
 def tree(request):
